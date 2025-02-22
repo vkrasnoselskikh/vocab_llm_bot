@@ -1,6 +1,9 @@
 from string import Template
+from typing import TypedDict
+
 from openai import OpenAI
-from colorama import Fore, Style
+
+from enum import Enum
 
 from vocab_llm_bot.config import Config
 from vocab_llm_bot.dict_file import DictFile
@@ -16,12 +19,23 @@ Ask  user how the word is translated from $lang_to to $lang_from.
 """)
 
 
+class RoleMessage(str, Enum):
+    system = 'system'
+    assistant = 'assistant'
+    user = 'user'
+
+
+class Message(TypedDict):
+    role: RoleMessage
+    content: str
+
+
 class UserDialogCtx:
     def __init__(self, dict_file: DictFile):
         self.config = Config()
         self.client = OpenAI(api_key=self.config.openai_api_key)
         self.dict_file = dict_file
-        self._messages_ctx: list[dict] = []
+        self._messages_ctx: list[Message] = []
         self._current_words: tuple[str, str] | None = None
 
     def get_completion(self, messages) -> str:
@@ -55,25 +69,6 @@ class UserDialogCtx:
             "content": 'If I answered correctly, write "correct" else "incorrect" and show translate'
         })
 
-        result = self.get_completion(self._messages_ctx)
-        print(Fore.LIGHTMAGENTA_EX + self.get_completion(ctx) + Fore.GREEN + Style.BRIGHT)
-        return result
-
-    def main_loop(self):
-        while True:
-            eng_world, rus_world = self.dict_file.get_random_word()
-
-            ctx = [
-                {"role": "system", "content": START_PROMPT.substitute(eng_world=eng_world, rus_world=rus_world)}
-            ]
-            assistant = self.get_completion(ctx)
-            ctx.append({"role": "assistant", "content": assistant})
-            print(Fore.LIGHTMAGENTA_EX + assistant + Fore.GREEN + Style.BRIGHT)
-            user_input = input()
-            if user_input in ['No', '--']:
-                print(eng_world)
-                continue
-            ctx.append({"role": "user", "content": user_input})
-            ctx.append({"role": "system",
-                        "content": 'If I answered correctly, write "correct" else "incorrect" and show translate'})
-            print(Fore.LIGHTMAGENTA_EX + self.get_completion(ctx) + Fore.GREEN + Style.BRIGHT)
+        assistant = self.get_completion(self._messages_ctx)
+        self._messages_ctx.append({"role": "assistant", "content": assistant})
+        return assistant
