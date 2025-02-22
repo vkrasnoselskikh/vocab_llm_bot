@@ -8,15 +8,16 @@ from enum import Enum
 from vocab_llm_bot.config import Config
 from vocab_llm_bot.dict_file import DictFile
 
-START_PROMPT = Template("""   
-You is translate assistant.
+START_PROMPT = Template("""You is translate assistant.
 Below is the pair - word in $lang_from and translation in $lang_to.
 
-$lang_from: $eng_world
-$lang_to: $rus_world
+$lang_from: $world_from
+$lang_to: $world_to
 
-Ask  user how the word is translated from $lang_to to $lang_from. 
+Ask user - how the word is translated from $lang_to to $lang_from?
 """)
+
+QUESTION_TEMPLATE = Template("""How is the word "$world_to" translated from $lang_to to $lang_from?""")
 
 
 class RoleMessage(str, Enum):
@@ -50,12 +51,18 @@ class UserDialogCtx:
 
         self._messages_ctx = [
             {"role": "system", "content": START_PROMPT.substitute(
-                lang_from=lang_from, lang_to=lang_to,
-                eng_world=self._current_words[0],
-                rus_world=self._current_words[1]
+                lang_from=lang_from,
+                lang_to=lang_to,
+                world_from=self._current_words[0],
+                world_to=self._current_words[1]
             )}
         ]
-        assistant = self.get_completion(self._messages_ctx)
+        assistant = QUESTION_TEMPLATE.substitute(
+            lang_from=lang_from,
+            lang_to=lang_to,
+            world_from=self._current_words[0],
+            world_to=self._current_words[1]
+        )
         self._messages_ctx.append({"role": "assistant", "content": assistant})
         return assistant
 
